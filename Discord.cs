@@ -110,7 +110,6 @@ internal class Discord
     {
       if (role.Name == newRank)
       {
-        // GiveRole(e.Guild.Members[e.Author.Id], role);
         member.GrantRoleAsync(role);
         Console.WriteLine($"{member.DisplayName} - gives - {role.Name}");
         break;

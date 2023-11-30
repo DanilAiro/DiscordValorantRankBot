@@ -1,11 +1,14 @@
+using ValorantNET;
 using static ValorantNET.Enums;
-
 
 class Valorant
 {
-  public static string GetRank(string region, string username, string tag)
+  private static readonly ValorantClient valorantClient = new("danilairo", "000", Regions.EU);
+
+  public static string GetRankByInfo(string region, string username, string tag)
   {
     string longStr = GetStringRank(region.ToLower(), username.ToLower(), tag.ToLower());
+    
     int startIndex = longStr.IndexOf("currenttierpatched");
     int length = 0;
 
@@ -28,6 +31,58 @@ class Valorant
     return longStr.Substring(startIndex + 21, length);
   }
 
+  public static string GetRankByPUUID(string puuid)
+  {
+    string longStr = valorantClient.GetMMRByPUUIDAsync(puuid).Result.ToString();
+
+    int startIndex = longStr.IndexOf("currenttierpatched");
+    int length = 0;
+
+    if (startIndex == -1)
+    {
+      return "";
+    }
+
+    foreach (var item in longStr.Substring(startIndex + 22))
+    {
+      if (item != '\"')
+      {
+        length++;
+      }
+      else
+      {
+        break;
+      }
+    }
+    return longStr.Substring(startIndex + 22, length);
+  }
+
+  public static string GetPUUID(string region, string username, string tag)
+  {
+    string longStr = GetStringRank(region.ToLower(), username.ToLower(), tag.ToLower());
+    
+    int startIndex = longStr.IndexOf("puuid");
+    int length = 0;
+
+    if (startIndex == -1)
+    {
+      return "";
+    }
+
+    foreach (var item in longStr.Substring(startIndex + 8))
+    {
+      if (item != '\"')
+      {
+        length++;
+      }
+      else
+      {
+        break;
+      }
+    }
+    return longStr.Substring(startIndex + 8, length);
+  }
+
   private static string GetStringRank(string region, string username, string tag)
   {
     Task<string>? dirtyString = GetDirtyStringRank(ParseRegion(region), username, tag);
@@ -48,7 +103,7 @@ class Valorant
     {
       using HttpClient client = new HttpClient();
       client.BaseAddress = new Uri("https://api.henrikdev.xyz");
-      return await client.GetStringAsync($"/valorant/v1/mmr/{region}/{username}/{tag}");
+      return await client.GetStringAsync($"/valorant/v2/mmr/{region}/{username}/{tag}");
     }
     catch (Exception)
     {
@@ -76,5 +131,5 @@ class Valorant
       default:
         return Regions.EU;
     }
-  } 
+  }
 }

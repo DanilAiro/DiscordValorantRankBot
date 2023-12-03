@@ -1,153 +1,12 @@
 using DSharpPlus;
+using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using System.Data.SQLite;
 
 internal class Discord
 {
   private static DiscordClient? Client { get; set; }
-
-  public static async Task WaitMessage()
-  {
-    var discordConfig = new DiscordConfiguration()
-    {
-      Intents = DiscordIntents.All,
-      Token = Secret.diskordToken,
-      TokenType = TokenType.Bot,
-      AutoReconnect = true
-    };
-
-    Client = new DiscordClient(discordConfig);
-
-    Client.Ready += Client_Ready;
-
-    Client.MessageCreated += async (s, e) =>
-    {
-      string dt = DateTime.Now.ToString("h:mm:ss tt");
-
-      if (e.Message.Channel.Name == "ранг" || e.Message.Channel.Name == "rank")
-      {
-        string connectionString = "Data Source=data.sqlite;Version=3;";
-        Console.WriteLine(e.Message + " - " + dt);
-        string[] strs = e.Message.Content.Split('#');
-
-        string rank = String.Empty;
-
-        if (strs.Length == 2)
-        {
-          rank = Valorant.GetRankByInfo("eU", strs[0], strs[1]);
-        }
-        else if (strs.Length == 3)
-        {
-          rank = Valorant.GetRankByInfo(strs[2], strs[0], strs[1]);
-        }
-
-        await using (var connection = new SQLiteConnection(connectionString))
-        {
-          connection.Open();
-          string sql = $@"SELECT *
-                          FROM ranks
-                          WHERE discord_user_id = {e.Author.Id}
-                          AND discord_server_id = {e.Guild.Id}";
-          
-          var command = new SQLiteCommand(sql, connection);
-          SQLiteDataReader reader = command.ExecuteReader();
-
-          if (!String.IsNullOrEmpty(rank))
-          {
-            if (!reader.HasRows)
-            {
-              Console.WriteLine($"Situation 1. {e.Author.Username} user added - {rank}");
-              // ранг распознан, пользователь не распознан
-              if (strs.Length == 2)
-              {
-                sql = $@"INSERT INTO ranks VALUES(
-                        {e.Guild.Id}, 
-                        {e.Message.Author.Id}, 
-                        '{Valorant.GetPUUID("eU", strs[0], strs[1])}', 
-                        '{rank}', 
-                        '{e.Message.Content}')";
-              }
-              else if (strs.Length == 3)
-              {
-                sql = $@"INSERT INTO ranks VALUES(
-                      {e.Guild.Id}, 
-                      {e.Message.Author.Id}, 
-                      '{Valorant.GetPUUID(strs[2], strs[0], strs[1])}', 
-                      '{rank}', 
-                      '{e.Message.Content}')";
-              }
-              command = new SQLiteCommand(sql, connection);
-              command.ExecuteNonQueryAsync();
-              UpdateRole(e, rank);
-            }
-            else 
-            {
-              // ранг, пользователь и сервер распознаны
-              while (reader.Read())
-              {
-                var oldRank = reader.GetValue(3);
-                var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
-                Console.WriteLine($"Situation 2. {e.Author.Username} user updated - {currentRank}");
-                if (!oldRank.Equals(currentRank))
-                {
-                  sql = $@"UPDATE ranks 
-                            SET valorant_rank = '{currentRank}'
-                            WHERE discord_user_id = {e.Author.Id} 
-                            AND discord_server_id = {e.Guild.Id}";
-                  command = new SQLiteCommand(sql, connection);
-                  command.ExecuteNonQueryAsync();
-                  UpdateRole(e, $"{reader.GetValue(3)}");
-                }
-              }
-            }
-          }
-          else
-          {
-            if (reader.HasRows)
-            {
-              while (reader.Read())
-              {
-                // ранг не распознан, пользователь и сервер распознаны
-                var oldRank = $"{reader.GetValue(3)}";
-                var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
-                Console.WriteLine($"Situation 3. {e.Author.Username} user updated - {currentRank}");
-                if (!currentRank.Equals(oldRank))
-                {
-                  sql = $@"UPDATE ranks 
-                            SET valorant_rank = '{currentRank}'
-                            WHERE discord_user_id = {e.Author.Id},
-                            discord_server_id = {e.Guild.Id}";
-                  command = new SQLiteCommand(sql, connection);
-                  command.ExecuteNonQueryAsync();
-                  UpdateRole(e, $"{reader.GetValue(3)}");
-                }
-              }
-            }
-            else
-            {
-              System.Console.WriteLine(reader.HasRows);
-              // ранг, пользователь и сервер не распознаны
-              Console.WriteLine($"Situation 4. {e.Author.Username} user not found");
-            }
-          }
-        }
-      }
-    };
-
-    await Client.ConnectAsync();
-    await Task.Delay(-1);
-  }
-
-  private static Task Client_Ready(DiscordClient sender, ReadyEventArgs args)
-  {
-    return Task.CompletedTask;
-  }
-
-  private static void UpdateRole(MessageCreateEventArgs e, string newRank)
-  {
-    var member = e.Guild.Members[e.Author.Id];
-
-    string[] ranks = [
+  private static readonly string[] ranks = [
       "Iron 1",
       "Iron 2",
       "Iron 3",
@@ -175,7 +34,165 @@ internal class Discord
       "Radiant"
     ];
 
-    var roles = member.Roles;
+  private static DiscordMember? Member { get; set; }
+  private static DiscordGuild? Guild { get; set; }
+  private static DiscordChannel? Channel { get; set; }
+
+  public static async Task WaitMessage()
+  {
+
+    var discordConfig = new DiscordConfiguration()
+    {
+      Intents = DiscordIntents.All,
+      Token = Secret.diskordToken,
+      TokenType = TokenType.Bot,
+      AutoReconnect = true
+    };
+
+    Client = new DiscordClient(discordConfig);
+
+    Client.Ready += Client_Ready;
+
+    // Добавить команду для удаления себя из БД
+
+    Client.MessageCreated += async (s, e) =>
+    {
+      string dt = DateTime.Now.ToString("h:mm:ss tt");
+      string connectionString = "Data Source=data.sqlite;Version=3;";
+      Member = e.Guild.Members[e.Author.Id];
+      Guild = e.Guild;
+      
+      foreach(var channel in Guild.Channels.Values)
+      {
+        if (channel.Name == "ранг" || channel.Name == "rank")
+        {
+          Channel = channel;
+        }
+      }
+
+      await using (var connection = new SQLiteConnection(connectionString))
+      {
+        connection.Open();
+        
+        if (e.Message.Channel.Name == "ранг" || e.Message.Channel.Name == "rank")
+        {
+          Console.WriteLine(e.Message + " - " + dt);
+          string[] strs = e.Message.Content.Split('#');
+
+          string rank = String.Empty;
+
+          if (strs.Length == 2)
+          {
+            rank = Valorant.GetRankByInfo("eU", strs[0], strs[1]);
+          }
+          else if (strs.Length == 3)
+          {
+            rank = Valorant.GetRankByInfo(strs[2], strs[0], strs[1]);
+          }
+
+          string sql = $@"SELECT *
+                          FROM ranks
+                          WHERE discord_user_id = {Member.Id}
+                          AND discord_server_id = {Guild.Id}";
+          
+          var command = new SQLiteCommand(sql, connection);
+          SQLiteDataReader reader = command.ExecuteReader();
+
+          if (!String.IsNullOrEmpty(rank))
+          {
+            if (!reader.HasRows)
+            {
+              SendMessage($"{e.Message.Content} user added with rank - {rank}");
+              // ранг распознан, пользователь не распознан
+              if (strs.Length == 2)
+              {
+                sql = $@"INSERT INTO ranks VALUES(
+                        {Guild.Id}, 
+                        {Member.Id}, 
+                        '{Valorant.GetPUUID("eU", strs[0], strs[1])}', 
+                        '{rank}', 
+                        '{e.Message.Content}')";
+              }
+              else if (strs.Length == 3)
+              {
+                sql = $@"INSERT INTO ranks VALUES(
+                      {Guild.Id}, 
+                      {Member.Id}, 
+                      '{Valorant.GetPUUID(strs[2], strs[0], strs[1])}', 
+                      '{rank}', 
+                      '{e.Message.Content}')";
+              }
+              command = new SQLiteCommand(sql, connection);
+              command.ExecuteNonQueryAsync();
+              UpdateRole(rank);
+            }
+            else 
+            {
+              // ранг, пользователь и сервер распознаны
+              while (reader.Read())
+              {
+                var oldRank = reader.GetValue(3);
+                var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
+                if (!oldRank.Equals(currentRank))
+                {
+                  SendMessage($"{Member.DisplayName} user updated with rank -  {currentRank}");
+                  sql = $@"UPDATE ranks 
+                            SET valorant_rank = '{currentRank}'
+                            WHERE discord_user_id = {Member.Id} 
+                            AND discord_server_id = {Guild.Id}";
+                  command = new SQLiteCommand(sql, connection);
+                  command.ExecuteNonQueryAsync();
+                  UpdateRole($"{reader.GetValue(3)}");
+                }
+              }
+            }
+          }
+          else
+          {
+            if (reader.HasRows)
+            {
+              while (reader.Read())
+              {
+                // ранг не распознан, пользователь и сервер распознаны
+                var oldRank = $"{reader.GetValue(3)}";
+                var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
+                if (!currentRank.Equals(oldRank))
+                {
+                  SendMessage($"{Member.DisplayName} user updated with rank - {currentRank}");
+                  sql = $@"UPDATE ranks 
+                            SET valorant_rank = '{currentRank}'
+                            WHERE discord_user_id = {Member.Id} 
+                            AND discord_server_id = {Guild.Id}";
+                  command = new SQLiteCommand(sql, connection);
+                  command.ExecuteNonQueryAsync();
+                  UpdateRole($"{reader.GetValue(3)}");
+                }
+              }
+            }
+            else
+            {
+              // ранг, пользователь и сервер не распознаны
+              SendMessage($"{e.Message.Content} Valorant user not found");
+            }
+          }
+        }
+          
+        UpdateAllRoles(connection);
+      }
+    };
+
+    await Client.ConnectAsync();
+    await Task.Delay(-1);
+  }
+
+  private static Task Client_Ready(DiscordClient sender, ReadyEventArgs args)
+  {
+    return Task.CompletedTask;
+  }
+
+  private static void UpdateRole(string newRank)
+  {
+    var roles = Member.Roles;
 
     foreach (var role in roles)
     {
@@ -183,22 +200,62 @@ internal class Discord
       {
         if (role.Name == rank)
         {
-          member.RevokeRoleAsync(role);
-          Console.WriteLine($"{member.DisplayName} - remove - {role.Name}");
+          Member.RevokeRoleAsync(role);
+          Console.WriteLine($"{Member.DisplayName} - remove - {role.Name}");
         }
       }
     }
 
     Thread.Sleep(1000);
 
-    foreach (var role in e.Guild.Roles.Values)
+    foreach (var role in Guild.Roles.Values)
     {
       if (role.Name == newRank)
       {
-        member.GrantRoleAsync(role);
-        Console.WriteLine($"{member.DisplayName} - gives - {role.Name}");
+        Member.GrantRoleAsync(role);
+        Console.WriteLine($"{Member.DisplayName} - gives - {role.Name}");
         break;
       }
     }
-  } 
+  }
+
+  private static void UpdateAllRoles(SQLiteConnection c)
+  {
+    var sql = $@"SELECT *
+                  FROM ranks
+                  WHERE discord_server_id = {Guild.Id}";
+    var command = new SQLiteCommand(sql, c);
+    var reader = command.ExecuteReader();
+
+    if (reader.HasRows)
+    {
+      while (reader.Read())
+      {
+        var oldRank = reader.GetValue(3);
+        var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
+        System.Console.WriteLine($"Test: {reader.GetValue(4)} - oldRank: {oldRank} - currentRank: {currentRank}");
+        if (!oldRank.Equals(currentRank))
+        {
+          SendMessage($"{reader.GetValue(4)} user updated with rank - {currentRank}");
+          Member = Guild.Members[ulong.Parse($"{reader.GetValue(1)}")];
+          UpdateRole(currentRank);
+
+          sql = $@"UPDATE ranks 
+                  SET valorant_rank = '{currentRank}'
+                  WHERE discord_user_id = {Member.Id} 
+                  AND discord_server_id = {Guild.Id}";
+          command = new SQLiteCommand(sql, c);
+          command.ExecuteNonQueryAsync();
+        }
+      }
+    }
+  }
+
+  private static void SendMessage(string text)
+  {
+    if (!Member.IsBot)
+    {
+      Client.SendMessageAsync(Channel, text);
+    }
+  }
 }

@@ -107,7 +107,7 @@ class Valorant
     }
     catch (Exception)
     {
-      Console.WriteLine($"{region} - {username}#{tag} - not found - {DateTime.Now.ToString("h:mm:ss tt")}");
+      // Console.WriteLine($"{region} - {username}#{tag} - not found - {DateTime.Now.ToString("h:mm:ss tt")}");
       return "";
     }
   }

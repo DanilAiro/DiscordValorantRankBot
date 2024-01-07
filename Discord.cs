@@ -1,6 +1,7 @@
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
+using System.Data;
 using System.Data.SQLite;
 
 internal class Discord
@@ -33,7 +34,7 @@ internal class Discord
       "Immortal 3",
       "Radiant"
     ];
-
+  private static DiscordRole? valorantRole { get; set; }
   private static DiscordMember? Member { get; set; }
   private static DiscordGuild? Guild { get; set; }
   private static DiscordChannel? Channel { get; set; }
@@ -61,8 +62,17 @@ internal class Discord
       string connectionString = "Data Source=data.sqlite;Version=3;";
       Member = e.Guild.Members[e.Author.Id];
       Guild = e.Guild;
-      
-      foreach(var channel in Guild.Channels.Values)
+
+      foreach (var role in Guild.Roles.Values)
+      {
+        if (role.Name == "Valorant Member")
+        {
+          valorantRole = role;
+          break;
+        }
+      }
+
+      foreach (var channel in Guild.Channels.Values)
       {
         if (channel.Name == "ранг" || channel.Name == "rank")
         {
@@ -124,6 +134,7 @@ internal class Discord
               }
               command = new SQLiteCommand(sql, connection);
               command.ExecuteNonQueryAsync();
+              GiveMemberRole();
               UpdateRole(rank);
             }
             else 
@@ -133,7 +144,7 @@ internal class Discord
               {
                 var oldRank = reader.GetValue(3);
                 var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
-                if (!oldRank.Equals(currentRank))
+                if (!oldRank.Equals(currentRank) && !currentRank.Equals(String.Empty))
                 {
                   SendMessage($"{Member.DisplayName} user updated with rank -  {currentRank}");
                   sql = $@"UPDATE ranks 
@@ -142,6 +153,7 @@ internal class Discord
                             AND discord_server_id = {Guild.Id}";
                   command = new SQLiteCommand(sql, connection);
                   command.ExecuteNonQueryAsync();
+                  GiveMemberRole();
                   UpdateRole($"{reader.GetValue(3)}");
                 }
               }
@@ -156,7 +168,7 @@ internal class Discord
                 // ранг не распознан, пользователь и сервер распознаны
                 var oldRank = $"{reader.GetValue(3)}";
                 var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
-                if (!currentRank.Equals(oldRank))
+                if (!currentRank.Equals(oldRank) && !currentRank.Equals(String.Empty))
                 {
                   SendMessage($"{Member.DisplayName} user updated with rank - {currentRank}");
                   sql = $@"UPDATE ranks 
@@ -165,6 +177,7 @@ internal class Discord
                             AND discord_server_id = {Guild.Id}";
                   command = new SQLiteCommand(sql, connection);
                   command.ExecuteNonQueryAsync();
+                  GiveMemberRole();
                   UpdateRole($"{reader.GetValue(3)}");
                 }
               }
@@ -188,6 +201,24 @@ internal class Discord
   private static Task Client_Ready(DiscordClient sender, ReadyEventArgs args)
   {
     return Task.CompletedTask;
+  }
+
+  private static void GiveMemberRole()
+  {
+    var roles = Member.Roles;
+
+    foreach (var role in roles)
+    {
+      if (role == valorantRole)
+      {
+        return;
+      }
+    }
+
+    Thread.Sleep(1000);
+
+    Member.GrantRoleAsync(valorantRole);
+    Console.WriteLine($"{Member.DisplayName} - gives - {valorantRole.Name}");
   }
 
   private static void UpdateRole(string newRank)
@@ -234,7 +265,7 @@ internal class Discord
         var oldRank = reader.GetValue(3);
         var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
         System.Console.WriteLine($"Test: {reader.GetValue(4)} - oldRank: {oldRank} - currentRank: {currentRank}");
-        if (!oldRank.Equals(currentRank))
+        if (!oldRank.Equals(currentRank) && !currentRank.Equals(String.Empty))
         {
           SendMessage($"{reader.GetValue(4)} user updated with rank - {currentRank}");
           Member = Guild.Members[ulong.Parse($"{reader.GetValue(1)}")];

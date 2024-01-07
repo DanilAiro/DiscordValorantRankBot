@@ -3,7 +3,11 @@ using static ValorantNET.Enums;
 
 class Valorant
 {
-  private static readonly ValorantClient valorantClient = new("danilairo", "000", Regions.EU);
+  private static string username = "danilairo";
+  private static string tag = "000";
+  private static bool isFirst = true;
+
+  private static ValorantClient? valorantClient = new(username, tag, Regions.EU);
 
   public static string GetRankByInfo(string region, string username, string tag)
   {
@@ -14,7 +18,7 @@ class Valorant
 
     if (startIndex == -1)
     {
-      return "";
+      return String.Empty;
     }
 
     foreach (var item in longStr.Substring(startIndex + 21))
@@ -40,7 +44,7 @@ class Valorant
 
     if (startIndex == -1)
     {
-      return "";
+      return String.Empty;
     }
 
     foreach (var item in longStr.Substring(startIndex + 22))
@@ -66,7 +70,7 @@ class Valorant
 
     if (startIndex == -1)
     {
-      return "";
+      return String.Empty;
     }
 
     foreach (var item in longStr.Substring(startIndex + 8))
@@ -93,7 +97,7 @@ class Valorant
     }
     else
     {
-      return "";
+      return String.Empty;
     }
   }
 
@@ -107,8 +111,8 @@ class Valorant
     }
     catch (Exception)
     {
-      // Console.WriteLine($"{region} - {username}#{tag} - not found - {DateTime.Now.ToString("h:mm:ss tt")}");
-      return "";
+      //Console.WriteLine($"{region} - {Valorant.username}#{Valorant.tag} - not found - {DateTime.Now.ToString("h:mm:ss tt")}");
+      return String.Empty;
     }
   }
 

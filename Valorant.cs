@@ -3,6 +3,7 @@ using static ValorantNET.Enums;
 
 class Valorant
 {
+  private static readonly string api_key = Environment.GetEnvironmentVariable("api_key");
   private static string username = "danilairo";
   private static string tag = "000";
   private static bool isFirst = true;
@@ -107,6 +108,7 @@ class Valorant
     {
       using HttpClient client = new HttpClient();
       client.BaseAddress = new Uri("https://api.henrikdev.xyz");
+      client.DefaultRequestHeaders.Add("Authorization", api_key);
       return await client.GetStringAsync($"/valorant/v2/mmr/{region}/{username}/{tag}");
     }
     catch (Exception)

@@ -1,7 +1,6 @@
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using System.Data;
 using System.Data.SQLite;
 
 internal class Discord
@@ -59,7 +58,7 @@ internal class Discord
     Client.MessageCreated += async (s, e) =>
     {
       string dt = DateTime.Now.ToString("h:mm:ss tt");
-      string connectionString = "Data Source=data.sqlite;Version=3;";
+      string connectionString = "Data Source=/home/danila/autostart/data.sqlite;Version=3;";
       Member = e.Guild.Members[e.Author.Id];
       Guild = e.Guild;
 
@@ -93,11 +92,13 @@ internal class Discord
 
           if (strs.Length == 2)
           {
-            rank = Valorant.GetRankByInfo("eU", strs[0], strs[1]);
+            rank = Valorant.GetRankByInfo(Valorant.GetStringRank(
+              Valorant.GetDirtyStringRank(Valorant.ParseRegion("eU"), strs[0], strs[1])));
           }
           else if (strs.Length == 3)
           {
-            rank = Valorant.GetRankByInfo(strs[2], strs[0], strs[1]);
+            rank = Valorant.GetRankByInfo(Valorant.GetStringRank(
+              Valorant.GetDirtyStringRank(Valorant.ParseRegion(strs[2]), strs[0], strs[1])));
           }
 
           string sql = $@"SELECT *
@@ -119,8 +120,12 @@ internal class Discord
                 sql = $@"INSERT INTO ranks VALUES(
                         {Guild.Id}, 
                         {Member.Id}, 
-                        '{Valorant.GetPUUID("eU", strs[0], strs[1])}', 
+                        '{Valorant.GetPUUID(Valorant.GetStringRank(
+                        Valorant.GetDirtyStringRank(Valorant.ParseRegion("eU"), strs[0], strs[1])))}', 
+                        'eu', 
                         '{rank}', 
+                        '{strs[0]}',
+                        '{strs[1]}',
                         '{e.Message.Content}')";
               }
               else if (strs.Length == 3)
@@ -128,12 +133,16 @@ internal class Discord
                 sql = $@"INSERT INTO ranks VALUES(
                       {Guild.Id}, 
                       {Member.Id}, 
-                      '{Valorant.GetPUUID(strs[2], strs[0], strs[1])}', 
+                      '{Valorant.GetPUUID(Valorant.GetStringRank(
+                      Valorant.GetDirtyStringRank(Valorant.ParseRegion(strs[2]), strs[0], strs[1])))}', 
+                      '{strs[2]}', 
                       '{rank}', 
+                      '{strs[0]}',
+                      '{strs[1]}',
                       '{e.Message.Content}')";
               }
               command = new SQLiteCommand(sql, connection);
-              command.ExecuteNonQueryAsync();
+              await command.ExecuteNonQueryAsync();
               GiveMemberRole();
               UpdateRole(rank);
             }
@@ -142,8 +151,9 @@ internal class Discord
               // ранг, пользователь и сервер распознаны
               while (reader.Read())
               {
-                var oldRank = reader.GetValue(3);
-                var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
+                var oldRank = reader.GetValue(4);
+                var currentRank = Valorant.GetRankByInfo(Valorant.GetStringRank(
+                  Valorant.GetDirtyStringRankByPUUID($"{reader.GetValue(3)}", $"{reader.GetValue(2)}")));
                 if (!oldRank.Equals(currentRank) && !currentRank.Equals(String.Empty))
                 {
                   SendMessage($"{Member.DisplayName} user updated with rank -  {currentRank}");
@@ -152,9 +162,9 @@ internal class Discord
                             WHERE discord_user_id = {Member.Id} 
                             AND discord_server_id = {Guild.Id}";
                   command = new SQLiteCommand(sql, connection);
-                  command.ExecuteNonQueryAsync();
+                  await command.ExecuteNonQueryAsync();
                   GiveMemberRole();
-                  UpdateRole($"{reader.GetValue(3)}");
+                  UpdateRole($"{reader.GetValue(4)}");
                 }
               }
             }
@@ -166,8 +176,9 @@ internal class Discord
               while (reader.Read())
               {
                 // ранг не распознан, пользователь и сервер распознаны
-                var oldRank = $"{reader.GetValue(3)}";
-                var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
+                var oldRank = $"{reader.GetValue(4)}";
+                var currentRank = Valorant.GetRankByInfo(Valorant.GetStringRank(
+                  Valorant.GetDirtyStringRankByPUUID($"{reader.GetValue(3)}", $"{reader.GetValue(2)}")));
                 if (!currentRank.Equals(oldRank) && !currentRank.Equals(String.Empty))
                 {
                   SendMessage($"{Member.DisplayName} user updated with rank - {currentRank}");
@@ -176,9 +187,9 @@ internal class Discord
                             WHERE discord_user_id = {Member.Id} 
                             AND discord_server_id = {Guild.Id}";
                   command = new SQLiteCommand(sql, connection);
-                  command.ExecuteNonQueryAsync();
+                  await command.ExecuteNonQueryAsync();
                   GiveMemberRole();
-                  UpdateRole($"{reader.GetValue(3)}");
+                  UpdateRole($"{reader.GetValue(4)}");
                 }
               }
             }
@@ -262,12 +273,13 @@ internal class Discord
     {
       while (reader.Read())
       {
-        var oldRank = reader.GetValue(3);
-        var currentRank = Valorant.GetRankByPUUID($"{reader.GetValue(2)}");
-        System.Console.WriteLine($"Test: {reader.GetValue(4)} - oldRank: {oldRank} - currentRank: {currentRank}");
+        var oldRank = reader.GetValue(4);
+        var currentRank = Valorant.GetRankByInfo(Valorant.GetStringRank(
+          Valorant.GetDirtyStringRankByPUUID($"{reader.GetValue(3)}", $"{reader.GetValue(2)}")));
+        Console.WriteLine($"Test: {reader.GetValue(7)} - oldRank: {oldRank} - currentRank: {currentRank}");
         if (!oldRank.Equals(currentRank) && !currentRank.Equals(String.Empty))
         {
-          SendMessage($"{reader.GetValue(4)} user updated with rank - {currentRank}");
+          SendMessage($"{reader.GetValue(7)} user updated with rank - {currentRank}");
           Member = Guild.Members[ulong.Parse($"{reader.GetValue(1)}")];
           UpdateRole(currentRank);
 

@@ -1,6 +1,6 @@
 ﻿using System.Data.SQLite;
 
-string filePath = "data.sqlite";
+string filePath = "/home/danila/autostart/data.sqlite";
 
 if (!File.Exists(filePath))
 {
@@ -14,7 +14,10 @@ if (!File.Exists(filePath))
                 discord_server_id INTEGER NOT NULL, 
                 discord_user_id INTEGER NOT NULL, 
                 valorant_puuid TEXT NOT NULL, 
+                valorant_region TEXT NOT NULL, 
                 valorant_rank TEXT NOT NULL, 
+                valorant_user TEXT NOT NULL, 
+                valorant_tag TEXT NOT NULL, 
                 discord_message TEXT NOT NULL,
                 UNIQUE (discord_server_id, discord_user_id, valorant_puuid))";
 

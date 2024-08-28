@@ -1,18 +1,9 @@
-using ValorantNET;
 using static ValorantNET.Enums;
 
 class Valorant
 {
-  private static string username = "danilairo";
-  private static string tag = "000";
-  private static bool isFirst = true;
-
-  private static ValorantClient? valorantClient = new(username, tag, Regions.EU);
-
-  public static string GetRankByInfo(string region, string username, string tag)
+  public static string GetRankByInfo(string longStr)
   {
-    string longStr = GetStringRank(region.ToLower(), username.ToLower(), tag.ToLower());
-    
     int startIndex = longStr.IndexOf("currenttierpatched");
     int length = 0;
 
@@ -35,36 +26,8 @@ class Valorant
     return longStr.Substring(startIndex + 21, length);
   }
 
-  public static string GetRankByPUUID(string puuid)
+  public static string GetPUUID(string longStr)
   {
-    string longStr = valorantClient.GetMMRByPUUIDAsync(puuid).Result.ToString();
-
-    int startIndex = longStr.IndexOf("currenttierpatched");
-    int length = 0;
-
-    if (startIndex == -1)
-    {
-      return String.Empty;
-    }
-
-    foreach (var item in longStr.Substring(startIndex + 22))
-    {
-      if (item != '\"')
-      {
-        length++;
-      }
-      else
-      {
-        break;
-      }
-    }
-    return longStr.Substring(startIndex + 22, length);
-  }
-
-  public static string GetPUUID(string region, string username, string tag)
-  {
-    string longStr = GetStringRank(region.ToLower(), username.ToLower(), tag.ToLower());
-    
     int startIndex = longStr.IndexOf("puuid");
     int length = 0;
 
@@ -87,10 +50,60 @@ class Valorant
     return longStr.Substring(startIndex + 8, length);
   }
 
-  private static string GetStringRank(string region, string username, string tag)
-  {
-    Task<string>? dirtyString = GetDirtyStringRank(ParseRegion(region), username, tag);
+  // public static string GetRankByInfo(string region, string username, string tag)
+  // {
+  //   string longStr = GetStringRank(GetDirtyStringRank(ParseRegion(region.ToLower()), username.ToLower(), tag.ToLower()));
+    
+  //   int startIndex = longStr.IndexOf("currenttierpatched");
+  //   int length = 0;
 
+  //   if (startIndex == -1)
+  //   {
+  //     return String.Empty;
+  //   }
+
+  //   foreach (var item in longStr.Substring(startIndex + 21))
+  //   {
+  //     if (item != '\"')
+  //     {
+  //       length++;
+  //     }
+  //     else
+  //     {
+  //       break;
+  //     }
+  //   }
+  //   return longStr.Substring(startIndex + 21, length);
+  // }
+
+  // public static string GetPUUID(string region, string username, string tag)
+  // {
+  //   string longStr = GetStringRank(GetDirtyStringRank(ParseRegion(region.ToLower()), username.ToLower(), tag.ToLower()));
+
+  //   int startIndex = longStr.IndexOf("puuid");
+  //   int length = 0;
+
+  //   if (startIndex == -1)
+  //   {
+  //     return String.Empty;
+  //   }
+
+  //   foreach (var item in longStr.Substring(startIndex + 8))
+  //   {
+  //     if (item != '\"')
+  //     {
+  //       length++;
+  //     }
+  //     else
+  //     {
+  //       break;
+  //     }
+  //   }
+  //   return longStr.Substring(startIndex + 8, length);
+  // }
+
+  public static string GetStringRank(Task<string>? dirtyString)
+  {
     if (dirtyString != null)
     {
       return dirtyString.Result.ToString();
@@ -101,22 +114,37 @@ class Valorant
     }
   }
 
-  private static async Task<string> GetDirtyStringRank(Regions region, string username, string tag)
+  public static async Task<string> GetDirtyStringRank(Regions region, string username, string tag)
   {
     try
     {
       using HttpClient client = new HttpClient();
       client.BaseAddress = new Uri("https://api.henrikdev.xyz");
+      client.DefaultRequestHeaders.Add("Authorization", Secret.apiKey);
       return await client.GetStringAsync($"/valorant/v2/mmr/{region}/{username}/{tag}");
     }
     catch (Exception)
     {
-      //Console.WriteLine($"{region} - {Valorant.username}#{Valorant.tag} - not found - {DateTime.Now.ToString("h:mm:ss tt")}");
       return String.Empty;
     }
   }
 
-  private static Regions ParseRegion(string region)
+  public static async Task<string> GetDirtyStringRankByPUUID(string region, string puuid)
+  {
+    try
+    {
+        using HttpClient client = new HttpClient();
+        client.BaseAddress = new Uri("https://api.henrikdev.xyz");
+        client.DefaultRequestHeaders.Add("Authorization", Secret.apiKey);
+        return await client.GetStringAsync($"/valorant/v1/by-puuid/mmr/{region}/{puuid}");
+    }
+    catch (Exception)
+    {
+        return String.Empty;
+    }
+  }
+  
+  public static Regions ParseRegion(string region)
   {
     switch (region)
     {

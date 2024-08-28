@@ -33,7 +33,7 @@ internal class Discord
       "Immortal 3",
       "Radiant"
     ];
-  private static DiscordRole? valorantRole { get; set; }
+  private static DiscordRole? ValorantRole { get; set; }
   private static DiscordMember? Member { get; set; }
   private static DiscordGuild? Guild { get; set; }
   private static DiscordChannel? Channel { get; set; }
@@ -66,7 +66,7 @@ internal class Discord
       {
         if (role.Name == "Valorant Member")
         {
-          valorantRole = role;
+          ValorantRole = role;
           break;
         }
       }
@@ -85,20 +85,20 @@ internal class Discord
         
         if (e.Message.Channel.Name == "ранг" || e.Message.Channel.Name == "rank")
         {
-          Console.WriteLine(e.Message + " - " + dt);
+          Console.WriteLine(dt + " - " + e.Message);
           string[] strs = e.Message.Content.Split('#');
 
-          string rank = String.Empty;
+          string rank = string.Empty;
 
           if (strs.Length == 2)
           {
             rank = Valorant.GetRankByInfo(Valorant.GetStringRank(
-              Valorant.GetDirtyStringRank(Valorant.ParseRegion("eU"), strs[0], strs[1])));
+              Valorant.GetDirtyStringRank("eU", strs[0], strs[1])));
           }
           else if (strs.Length == 3)
           {
             rank = Valorant.GetRankByInfo(Valorant.GetStringRank(
-              Valorant.GetDirtyStringRank(Valorant.ParseRegion(strs[2]), strs[0], strs[1])));
+              Valorant.GetDirtyStringRank(strs[2], strs[0], strs[1])));
           }
 
           string sql = $@"SELECT *
@@ -109,7 +109,7 @@ internal class Discord
           var command = new SQLiteCommand(sql, connection);
           SQLiteDataReader reader = command.ExecuteReader();
 
-          if (!String.IsNullOrEmpty(rank))
+          if (!string.IsNullOrEmpty(rank))
           {
             if (!reader.HasRows)
             {
@@ -121,7 +121,7 @@ internal class Discord
                         {Guild.Id}, 
                         {Member.Id}, 
                         '{Valorant.GetPUUID(Valorant.GetStringRank(
-                        Valorant.GetDirtyStringRank(Valorant.ParseRegion("eU"), strs[0], strs[1])))}', 
+                        Valorant.GetDirtyStringRank("eU", strs[0], strs[1])))}', 
                         'eu', 
                         '{rank}', 
                         '{strs[0]}',
@@ -134,8 +134,8 @@ internal class Discord
                       {Guild.Id}, 
                       {Member.Id}, 
                       '{Valorant.GetPUUID(Valorant.GetStringRank(
-                      Valorant.GetDirtyStringRank(Valorant.ParseRegion(strs[2]), strs[0], strs[1])))}', 
-                      '{strs[2]}', 
+                      Valorant.GetDirtyStringRank(strs[2], strs[0], strs[1])))}', 
+                      '{strs[2].ToLower()}', 
                       '{rank}', 
                       '{strs[0]}',
                       '{strs[1]}',
@@ -179,7 +179,7 @@ internal class Discord
                 var oldRank = $"{reader.GetValue(4)}";
                 var currentRank = Valorant.GetRankByInfo(Valorant.GetStringRank(
                   Valorant.GetDirtyStringRankByPUUID($"{reader.GetValue(3)}", $"{reader.GetValue(2)}")));
-                if (!currentRank.Equals(oldRank) && !currentRank.Equals(String.Empty))
+                if (!currentRank.Equals(oldRank) && !currentRank.Equals(string.Empty))
                 {
                   SendMessage($"{Member.DisplayName} user updated with rank - {currentRank}");
                   sql = $@"UPDATE ranks 
@@ -220,7 +220,7 @@ internal class Discord
 
     foreach (var role in roles)
     {
-      if (role == valorantRole)
+      if (role == ValorantRole)
       {
         return;
       }
@@ -228,8 +228,8 @@ internal class Discord
 
     Thread.Sleep(1000);
 
-    Member.GrantRoleAsync(valorantRole);
-    Console.WriteLine($"{Member.DisplayName} - gives - {valorantRole.Name}");
+    Member.GrantRoleAsync(ValorantRole);
+    Console.WriteLine(DateTime.Now.ToString("h:mm:ss tt") + $" - {Member.DisplayName} - gives - {ValorantRole.Name}");
   }
 
   private static void UpdateRole(string newRank)
@@ -243,7 +243,7 @@ internal class Discord
         if (role.Name == rank)
         {
           Member.RevokeRoleAsync(role);
-          Console.WriteLine($"{Member.DisplayName} - remove - {role.Name}");
+          Console.WriteLine(DateTime.Now.ToString("h:mm:ss tt") + $" - {Member.DisplayName} - remove - {role.Name}");
         }
       }
     }
@@ -255,7 +255,7 @@ internal class Discord
       if (role.Name == newRank)
       {
         Member.GrantRoleAsync(role);
-        Console.WriteLine($"{Member.DisplayName} - gives - {role.Name}");
+        Console.WriteLine(DateTime.Now.ToString("h:mm:ss tt") + $" - {Member.DisplayName} - gives - {role.Name}");
         break;
       }
     }
@@ -276,7 +276,7 @@ internal class Discord
         var oldRank = reader.GetValue(4);
         var currentRank = Valorant.GetRankByInfo(Valorant.GetStringRank(
           Valorant.GetDirtyStringRankByPUUID($"{reader.GetValue(3)}", $"{reader.GetValue(2)}")));
-        Console.WriteLine($"Test: {reader.GetValue(7)} - oldRank: {oldRank} - currentRank: {currentRank}");
+        Console.WriteLine(DateTime.Now.ToString("h:mm:ss tt") + $" - Test: {reader.GetValue(7)} - oldRank: {oldRank} - currentRank: {currentRank}");
         if (!oldRank.Equals(currentRank) && !currentRank.Equals(String.Empty))
         {
           SendMessage($"{reader.GetValue(7)} user updated with rank - {currentRank}");

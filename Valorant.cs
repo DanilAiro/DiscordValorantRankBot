@@ -1,5 +1,3 @@
-using System.Net;
-
 class Valorant
 {
   private static readonly string endpoint = "https://api.henrikdev.xyz";
@@ -68,7 +66,7 @@ class Valorant
     }
     catch (Exception e)
     {
-      Console.WriteLine(e.Message);
+      Console.WriteLine(DateTime.Now.ToString("h:mm:ss tt") + " - " + e.Message);
       return string.Empty;
     }
   }
@@ -84,7 +82,7 @@ class Valorant
     }
     catch (Exception e)
     {
-      Console.WriteLine(e.Message);
+      Console.WriteLine(DateTime.Now.ToString("h:mm:ss tt") + " - " + e.Message);
       return string.Empty;
     }
   }
